@@ -493,9 +493,9 @@ ORDER BY 조사연도 ASC
             margin=dict(t=80, b=40, l=60, r=60))
         fig1.update_yaxes(title_text="금융부채 가중평균 (만원)",
                           gridcolor="#E8EFF6", secondary_y=False,
-                          titlefont=dict(color=COLOR_RED))
+                          title_font=dict(color=COLOR_RED))
         fig1.update_yaxes(title_text="순자산 (만원)", showgrid=False,
-                          secondary_y=True, titlefont=dict(color=COLOR_BLUE))
+                          secondary_y=True, title_font=dict(color=COLOR_BLUE))
         st.plotly_chart(fig1, use_container_width=True)
 
     with c2:
