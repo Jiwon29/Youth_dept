@@ -189,29 +189,39 @@ with st.sidebar:
         3: ("🔬", "대시보드 3  같은 부채, 다른 결과"),
     }
 
-    # 활성 버튼만 빨간색으로 덮어쓰는 CSS (nth-of-type 순서 기반)
     active_page = st.session_state.page
-    btn_css_parts = []
-    for n in [1, 2, 3]:
-        if n == active_page:
-            btn_css_parts.append(
-                f'[data-testid="stSidebar"] div[data-testid="stButton"]:nth-of-type({n}) > button {{'
-                'background-color: #EF4444 !important;'
-                'color: #ffffff !important;'
-                'border: none !important;'
-                'font-weight: 700 !important;}'
-            )
-        else:
-            btn_css_parts.append(
-                f'[data-testid="stSidebar"] div[data-testid="stButton"]:nth-of-type({n}) > button {{'
-                'background-color: #ffffff !important;'
-                'color: #374151 !important;'
-                'border: 1.5px solid #D1D5DB !important;'
-                'font-weight: 500 !important;}'
-            )
-    st.markdown(f"<style>{''.join(btn_css_parts)}</style>", unsafe_allow_html=True)
 
+    # Streamlit 버튼의 실제 DOM: button[data-testid="baseButton-secondary"]
+    # key값은 DOM에 직접 노출되지 않으므로,
+    # 버튼 텍스트(p 태그)로 선택하는 대신
+    # 사이드바 전체에서 순서(nth-child)를 쓰지 않고
+    # 각 버튼 직전에 고유한 빈 <span id> 를 심어 인접 형제 선택자로 타겟
     for n, (icon, label) in pages.items():
+        is_active = (n == active_page)
+        bg  = "#EF4444" if is_active else "#ffffff"
+        fg  = "#ffffff" if is_active else "#374151"
+        fw  = "700"     if is_active else "500"
+        bd  = "none"    if is_active else "1.5px solid #D1D5DB"
+        hbg = "#DC2626" if is_active else "#F3F4F6"
+        hfg = "#ffffff" if is_active else "#111827"
+
+        # anchor span + CSS: span#nav-N ~ div button
+        st.markdown(
+            f'<span id="nav-anchor-{n}" style="display:none"></span>'
+            f'<style>'
+            f'#nav-anchor-{n} + div button {{'
+            f'  background-color:{bg} !important; color:{fg} !important;'
+            f'  border:{bd} !important; font-weight:{fw} !important;'
+            f'  border-radius:8px !important; width:100% !important;'
+            f'  padding:0.55rem 0.9rem !important; font-size:0.9rem !important;'
+            f'  text-align:left !important; margin-bottom:0.3rem !important;'
+            f'}}'
+            f'#nav-anchor-{n} + div button:hover {{'
+            f'  background-color:{hbg} !important; color:{hfg} !important;'
+            f'}}'
+            f'</style>',
+            unsafe_allow_html=True,
+        )
         if st.button(f"{icon}  {label}", key=f"nav_{n}", use_container_width=True):
             st.session_state.page = n
             st.rerun()
