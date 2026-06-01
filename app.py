@@ -172,7 +172,7 @@ def load_table(query):
     return pd.read_sql(query, conn)
 
 def load_kgss_income_group():
-    """캐시 없이 직접 읽기 — kgss_income_group은 새로 추가된 테이블이므로 캐시 우회"""
+    """kgss_income_group 테이블을 DB에서 직접 읽기"""
     return pd.read_sql(
         "SELECT year, income_group, avg_satfin, avg_finpros "
         "FROM kgss_income_group ORDER BY year, income_group",
