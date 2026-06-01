@@ -1095,95 +1095,197 @@ ORDER BY m.year
 
     st.markdown("---")
 
-    # ── 차트 6 : 순자산 중앙값 × 가계만족도 ─────────────────────
-    st.markdown('<p class="section-title">④ 순자산 중앙값 vs 가계만족도 (KGSS SATFIN)</p>', unsafe_allow_html=True)
+    # ── 차트 6 : Q1·Q5 순자산 중앙값 × KGSS 가계만족도 ────────
+    st.markdown('<p class="section-title">④ 소득분위별 순자산 중앙값 vs KGSS 가계만족도 (SATFIN)</p>', unsafe_allow_html=True)
 
-
+    # SQL: 연도×소득분위별 순자산 중앙값 (CTE 중앙값 방식) + kgss_summary LEFT JOIN
+    query_q1q5_satfin = """
+WITH ranked AS (
+    SELECT
+        year,
+        소득분위_숫자,
+        순자산,
+        ROW_NUMBER() OVER (PARTITION BY year, 소득분위_숫자 ORDER BY 순자산) AS rn,
+        COUNT()      OVER (PARTITION BY year, 소득분위_숫자)                  AS cnt
+    FROM hfws_youth
+),
+median_raw AS (
+    SELECT year, 소득분위_숫자, 순자산
+    FROM ranked
+    WHERE rn IN ((cnt+1)/2, (cnt+2)/2)
+),
+median_by_group AS (
+    SELECT year, 소득분위_숫자, AVG(순자산) AS 순자산_중앙값
+    FROM median_raw
+    GROUP BY year, 소득분위_숫자
+)
+SELECT
+    m.year,
+    m.소득분위_숫자,
+    m.순자산_중앙값,
+    k.avg_satfin
+FROM median_by_group m
+LEFT JOIN kgss_summary k ON m.year = k.year
+ORDER BY m.year, m.소득분위_숫자
+"""
+    df_q1q5 = load_table(query_q1q5_satfin)
+    df_q1 = df_q1q5[df_q1q5["소득분위_숫자"] == 1].copy()
+    df_q5 = df_q1q5[df_q1q5["소득분위_숫자"] == 5].copy()
+    # kgss는 연도별 1행이므로 중복 제거
+    df_kgss_sat = df_q1q5[["year","avg_satfin"]].drop_duplicates().sort_values("year")
 
     fig6 = make_subplots(specs=[[{"secondary_y": True}]])
+
+    # Q1 순자산 중앙값 (빨강 실선)
     fig6.add_trace(
-        go.Scatter(x=merged["year"], y=merged["순자산_중앙값"],
-                   name="순자산 중앙값 (만원)", mode="lines+markers+text",
-                   line=dict(color=COLOR_BLUE, width=3),
-                   marker=dict(size=9),
-                   text=[f"{int(v):,}만" for v in merged["순자산_중앙값"]],
-                   textposition="top center",
-                   hovertemplate="<b>%{x}년</b><br>순자산 중앙값: %{y:,.0f}만원<extra></extra>"),
-        secondary_y=False)
-    fig6.add_trace(
-        go.Scatter(x=merged["year"], y=merged["avg_satfin"],
-                   name="가계만족도 평균 (↑ 높을수록 불만족)",
+        go.Scatter(x=df_q1["year"], y=df_q1["순자산_중앙값"],
+                   name="Q1(하위) 순자산 중앙값",
                    mode="lines+markers+text",
-                   line=dict(color=COLOR_ORANGE, width=3, dash="dot"),
+                   line=dict(color=COLOR_Q1, width=3),
                    marker=dict(size=9),
-                   text=[f"{v:.3f}" for v in merged["avg_satfin"]],
+                   text=[f"{int(v):,}만" for v in df_q1["순자산_중앙값"]],
                    textposition="bottom center",
-                   hovertemplate="<b>%{x}년</b><br>가계만족도: %{y:.3f}<extra></extra>"),
+                   hovertemplate="<b>Q1 %{x}년</b><br>순자산 중앙값: %{y:,.0f}만원<extra></extra>"),
+        secondary_y=False)
+    # Q5 순자산 중앙값 (파랑 실선)
+    fig6.add_trace(
+        go.Scatter(x=df_q5["year"], y=df_q5["순자산_중앙값"],
+                   name="Q5(상위) 순자산 중앙값",
+                   mode="lines+markers+text",
+                   line=dict(color=COLOR_Q5, width=3),
+                   marker=dict(size=9),
+                   text=[f"{int(v):,}만" for v in df_q5["순자산_중앙값"]],
+                   textposition="top center",
+                   hovertemplate="<b>Q5 %{x}년</b><br>순자산 중앙값: %{y:,.0f}만원<extra></extra>"),
+        secondary_y=False)
+    # KGSS 가계만족도 전체 평균 (주황 점선, 보조축)
+    fig6.add_trace(
+        go.Scatter(x=df_kgss_sat["year"], y=df_kgss_sat["avg_satfin"],
+                   name="KGSS 가계만족도 평균 (↑불만족, 전체 청년)",
+                   mode="lines+markers+text",
+                   line=dict(color=COLOR_ORANGE, width=2.5, dash="dot"),
+                   marker=dict(size=8, symbol="diamond"),
+                   text=[f"{v:.2f}" for v in df_kgss_sat["avg_satfin"]],
+                   textposition="top right",
+                   hovertemplate="<b>KGSS %{x}년</b><br>가계만족도: %{y:.3f}<extra></extra>"),
         secondary_y=True)
+
     fig6.update_layout(
-        height=400, plot_bgcolor="white",
-        title="순자산 중앙값과 가계만족도 추이 (2018·2021·2023)",
+        height=440, plot_bgcolor="white",
+        title="소득분위별 순자산 중앙값(Q1·Q5) × KGSS 가계만족도 추이",
         legend=dict(orientation="h", y=1.1),
         xaxis=dict(tickvals=[2018, 2021, 2023], gridcolor="#E8EFF6"),
-        margin=dict(t=70, b=40, l=60, r=80))
+        margin=dict(t=80, b=40, l=60, r=80))
     fig6.update_yaxes(title_text="순자산 중앙값 (만원)", gridcolor="#E8EFF6", secondary_y=False)
-    fig6.update_yaxes(title_text="SATFIN 평균 (↑높을수록 불만족)",
-                      showgrid=False, range=[2.5, 3.5], secondary_y=True)
+    fig6.update_yaxes(title_text="SATFIN (↑높을수록 불만족)",
+                      showgrid=False, range=[2.4, 3.4], secondary_y=True)
     st.plotly_chart(fig6, use_container_width=True)
 
     st.markdown(
-        '<div class="insight-box">💡 <b>객관적 자산과 주관적 체감이 모두 악화</b><br><br>'
-        '순자산 중앙값이 <b>13,660만원(2018) → 15,513만원(2021) → 13,560만원(2023)</b>으로 '
-        '영끌 시기 반짝 상승 후 다시 하락했습니다. '
-        '가계만족도 지수도 2.87(2018) → 3.05(2021)로 악화되었습니다. '
-        '자산 통계상 평균은 올랐지만, <b>실제 청년이 느끼는 체감은 계속 나빠지고 있습니다.</b></div>',
+        f'<div class="insight-box">💡 <b>자산 격차가 체감 불만족을 설명한다</b><br><br>'
+        f'<b style="color:{COLOR_Q5}">Q5(상위)</b> 순자산 중앙값은 영끌 시기(2021) 크게 뛰었다가 2023년 소폭 조정되었고, '
+        f'<b style="color:{COLOR_Q1}">Q1(하위)</b>는 세 시점 내내 낮은 수준에서 거의 변화가 없습니다.<br><br>'
+        'KGSS 가계만족도(주황 점선)는 같은 기간 2.87 → 3.05 → 3.03으로 <b>전반적으로 악화</b>되었습니다. '
+        '만족도 하락의 실질적 원인은 평균 상승 이면에 가려진 <b>Q1의 자산 정체</b>에 있으며, '
+        '이는 두 데이터를 연도 기준으로 결합했을 때 비로소 드러나는 구조적 불평등입니다.</div>',
         unsafe_allow_html=True)
     with st.expander("🗄️ SQL 쿼리 보기"):
-        st.code(MEDIAN_JOIN_QUERY, language="sql")
+        st.code(query_q1q5_satfin, language="sql")
 
     st.markdown("---")
 
-    # ── 차트 7 : 순자산 중앙값 × 미래 전망 ─────────────────────
-    st.markdown('<p class="section-title">⑤ 순자산 중앙값 vs 미래 경제 전망 (KGSS FINPROS)</p>', unsafe_allow_html=True)
+    # ── 차트 7 : Q1·Q5 순자산 중앙값 × KGSS 미래 전망 ──────────
+    st.markdown('<p class="section-title">⑤ 소득분위별 순자산 중앙값 vs KGSS 미래 경제 전망 (FINPROS)</p>', unsafe_allow_html=True)
 
-    merged_fin = merged[merged["avg_finpros"].notna()].copy()
+    query_q1q5_finpros = """
+WITH ranked AS (
+    SELECT
+        year,
+        소득분위_숫자,
+        순자산,
+        ROW_NUMBER() OVER (PARTITION BY year, 소득분위_숫자 ORDER BY 순자산) AS rn,
+        COUNT()      OVER (PARTITION BY year, 소득분위_숫자)                  AS cnt
+    FROM hfws_youth
+),
+median_raw AS (
+    SELECT year, 소득분위_숫자, 순자산
+    FROM ranked
+    WHERE rn IN ((cnt+1)/2, (cnt+2)/2)
+),
+median_by_group AS (
+    SELECT year, 소득분위_숫자, AVG(순자산) AS 순자산_중앙값
+    FROM median_raw
+    GROUP BY year, 소득분위_숫자
+)
+SELECT
+    m.year,
+    m.소득분위_숫자,
+    m.순자산_중앙값,
+    k.avg_finpros
+FROM median_by_group m
+LEFT JOIN kgss_summary k ON m.year = k.year
+WHERE k.avg_finpros IS NOT NULL
+ORDER BY m.year, m.소득분위_숫자
+"""
+    df_q1q5_fin = load_table(query_q1q5_finpros)
+    df_q1_fin = df_q1q5_fin[df_q1q5_fin["소득분위_숫자"] == 1].copy()
+    df_q5_fin = df_q1q5_fin[df_q1q5_fin["소득분위_숫자"] == 5].copy()
+    df_kgss_fin = df_q1q5_fin[["year","avg_finpros"]].drop_duplicates().sort_values("year")
 
     fig7 = make_subplots(specs=[[{"secondary_y": True}]])
+
     fig7.add_trace(
-        go.Scatter(x=merged_fin["year"], y=merged_fin["순자산_중앙값"],
-                   name="순자산 중앙값 (만원)", mode="lines+markers+text",
-                   line=dict(color=COLOR_BLUE, width=3),
+        go.Scatter(x=df_q1_fin["year"], y=df_q1_fin["순자산_중앙값"],
+                   name="Q1(하위) 순자산 중앙값",
+                   mode="lines+markers+text",
+                   line=dict(color=COLOR_Q1, width=3),
                    marker=dict(size=9),
-                   text=[f"{int(v):,}만" for v in merged_fin["순자산_중앙값"]],
-                   textposition="top center"),
+                   text=[f"{int(v):,}만" for v in df_q1_fin["순자산_중앙값"]],
+                   textposition="bottom center",
+                   hovertemplate="<b>Q1 %{x}년</b><br>순자산 중앙값: %{y:,.0f}만원<extra></extra>"),
         secondary_y=False)
     fig7.add_trace(
-        go.Scatter(x=merged_fin["year"], y=merged_fin["avg_finpros"],
-                   name="미래전망 평균 (↑ 높을수록 비관적)",
+        go.Scatter(x=df_q5_fin["year"], y=df_q5_fin["순자산_중앙값"],
+                   name="Q5(상위) 순자산 중앙값",
                    mode="lines+markers+text",
-                   line=dict(color="#9333EA", width=3, dash="dot"),
+                   line=dict(color=COLOR_Q5, width=3),
                    marker=dict(size=9),
-                   text=[f"{v:.3f}" for v in merged_fin["avg_finpros"]],
-                   textposition="bottom center"),
+                   text=[f"{int(v):,}만" for v in df_q5_fin["순자산_중앙값"]],
+                   textposition="top center",
+                   hovertemplate="<b>Q5 %{x}년</b><br>순자산 중앙값: %{y:,.0f}만원<extra></extra>"),
+        secondary_y=False)
+    fig7.add_trace(
+        go.Scatter(x=df_kgss_fin["year"], y=df_kgss_fin["avg_finpros"],
+                   name="KGSS 미래전망 평균 (↑비관적, 전체 청년)",
+                   mode="lines+markers+text",
+                   line=dict(color="#9333EA", width=2.5, dash="dot"),
+                   marker=dict(size=8, symbol="diamond"),
+                   text=[f"{v:.2f}" for v in df_kgss_fin["avg_finpros"]],
+                   textposition="top right",
+                   hovertemplate="<b>KGSS %{x}년</b><br>미래전망: %{y:.3f}<extra></extra>"),
         secondary_y=True)
+
     fig7.update_layout(
-        height=400, plot_bgcolor="white",
-        title="순자산 중앙값과 미래 경제 전망 (2021·2023)",
+        height=440, plot_bgcolor="white",
+        title="소득분위별 순자산 중앙값(Q1·Q5) × KGSS 미래 경제 전망 추이 (2021·2023)",
         legend=dict(orientation="h", y=1.1),
         xaxis=dict(tickvals=[2021, 2023], gridcolor="#E8EFF6"),
-        margin=dict(t=70, b=40, l=60, r=80))
+        margin=dict(t=80, b=40, l=60, r=80))
     fig7.update_yaxes(title_text="순자산 중앙값 (만원)", gridcolor="#E8EFF6", secondary_y=False)
-    fig7.update_yaxes(title_text="FINPROS 평균 (↑높을수록 비관적)",
-                      showgrid=False, range=[2.0, 3.5], secondary_y=True)
+    fig7.update_yaxes(title_text="FINPROS (↑높을수록 비관적)",
+                      showgrid=False, range=[2.0, 3.2], secondary_y=True)
     st.plotly_chart(fig7, use_container_width=True)
 
     st.markdown(
-        '<div class="insight-box">💡 <b>"현재도 나쁘고, 미래도 밝지 않다"</b><br><br>'
-        '2023년 순자산 중앙값 하락과 함께 미래 전망 지수도 개선되지 않았습니다(2.534 → 2.503). '
-        '⑥번 차트와 함께, 청년의 재정 상황에 대한 <b>객관적 악화와 주관적 비관이 동시에 진행</b>되고 있습니다.</div>',
+        f'<div class="insight-box">💡 <b>"자산이 늘지 않은 계층은 미래도 비관적이다"</b><br><br>'
+        f'2021 → 2023년, <b style="color:{COLOR_Q1}">Q1</b>의 순자산 중앙값은 사실상 정체된 반면 '
+        f'<b style="color:{COLOR_Q5}">Q5</b>는 일정 수준을 유지합니다. '
+        '같은 기간 KGSS 미래 전망 지수는 2.534 → 2.503으로 소폭 개선됐지만 여전히 중간(3.0) 아래에 머물러 있습니다.<br><br>'
+        '부채를 감수하고도 자산 형성에 실패한 Q1 청년들의 객관적 현실이, '
+        '<b>전체 청년 세대의 미래 비관 정서를 구조적으로 끌어내리고 있음</b>을 두 데이터의 교차가 시사합니다.</div>',
         unsafe_allow_html=True)
     with st.expander("🗄️ SQL 쿼리 보기"):
-        st.code(MEDIAN_JOIN_QUERY, language="sql")
+        st.code(query_q1q5_finpros, language="sql")
 
     # ── 최종 결론 ──────────────────────────────────────────────
     st.markdown("---")
