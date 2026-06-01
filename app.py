@@ -184,37 +184,35 @@ with st.sidebar:
         st.session_state.page = 1
 
     pages = {
-        1: ("📈", "대시보드 1", "청년 부채 현상 파악"),
-        2: ("💰", "대시보드 2", "부채 속 자산은 쌓였는가?"),
-        3: ("🔬", "대시보드 3", "같은 부채, 다른 결과"),
+        1: ("📈", "대시보드 1  청년 부채 현상 파악"),
+        2: ("💰", "대시보드 2  부채 속 자산은 쌓였는가?"),
+        3: ("🔬", "대시보드 3  같은 부채, 다른 결과"),
     }
-    for n, (icon, title, subtitle) in pages.items():
-        active = st.session_state.page == n
-        # 활성 버튼: 빨간 배경 흰 글씨 / 비활성: 흰 배경 회색 글씨
-        if active:
-            bg, fg, border = "#EF4444", "#ffffff", "#EF4444"
+
+    # 활성 버튼만 빨간색으로 덮어쓰는 CSS (nth-of-type 순서 기반)
+    active_page = st.session_state.page
+    btn_css_parts = []
+    for n in [1, 2, 3]:
+        if n == active_page:
+            btn_css_parts.append(
+                f'[data-testid="stSidebar"] div[data-testid="stButton"]:nth-of-type({n}) > button {{'
+                'background-color: #EF4444 !important;'
+                'color: #ffffff !important;'
+                'border: none !important;'
+                'font-weight: 700 !important;}'
+            )
         else:
-            bg, fg, border = "#ffffff", "#374151", "#D1D5DB"
-        btn_html = f"""
-        <div style="
-            background:{bg}; color:{fg};
-            border: 1.5px solid {border};
-            border-radius: 8px;
-            padding: 0.55rem 0.9rem;
-            margin-bottom: 0.4rem;
-            cursor: pointer;
-            font-weight: {'700' if active else '500'};
-            font-size: 0.88rem;
-            line-height: 1.4;
-        ">
-            {icon} <b>{title}</b><br>
-            <span style="font-size:0.78rem; opacity:0.85;">{subtitle}</span>
-        </div>"""
-        # 실제 클릭은 st.button으로 처리 (HTML은 시각용)
-        st.markdown(btn_html, unsafe_allow_html=True)
-        if st.button(f"{icon} {title}", key=f"nav_{n}",
-                     use_container_width=True,
-                     help=subtitle):
+            btn_css_parts.append(
+                f'[data-testid="stSidebar"] div[data-testid="stButton"]:nth-of-type({n}) > button {{'
+                'background-color: #ffffff !important;'
+                'color: #374151 !important;'
+                'border: 1.5px solid #D1D5DB !important;'
+                'font-weight: 500 !important;}'
+            )
+    st.markdown(f"<style>{''.join(btn_css_parts)}</style>", unsafe_allow_html=True)
+
+    for n, (icon, label) in pages.items():
+        if st.button(f"{icon}  {label}", key=f"nav_{n}", use_container_width=True):
             st.session_state.page = n
             st.rerun()
 
