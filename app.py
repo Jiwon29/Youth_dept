@@ -36,11 +36,20 @@ st.markdown("""
 }
 /* 제목 */
 .page-title {
-    font-size: 1.9rem; font-weight: 800;
-    color: #1A2B45; margin-bottom: 0.15rem;
+    font-size: 2.6rem; font-weight: 900;
+    color: #1A2B45; margin-bottom: 0.2rem;
+    letter-spacing: -0.5px; line-height: 1.2;
+}
+.page-title-banner {
+    background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+    border-left: 6px solid #3B82F6;
+    border-radius: 12px;
+    padding: 1.2rem 1.6rem 1rem 1.6rem;
+    margin-bottom: 1rem;
 }
 .page-subtitle {
-    font-size: 1.0rem; color: #5A6A7E; margin-bottom: 0.5rem;
+    font-size: 1.05rem; color: #3B5B8A; margin-top: 0.3rem;
+    font-weight: 500;
 }
 /* 섹션 구분선 제목 */
 .section-title {
@@ -205,11 +214,11 @@ page = st.session_state.page
 # ═══════════════════════════════════════════════════════════════
 if page == 1:
 
-    st.markdown('<p class="page-title">📈 대시보드 1: 청년 부채 현상 파악</p>', unsafe_allow_html=True)
     st.markdown(
-        '<p class="page-subtitle">저금리 시대, 청년들은 왜 빚을 냈는가 — 거시 금리 흐름과 청년 부채 급증의 상관관계 추적</p>',
-        unsafe_allow_html=True,
-    )
+        '<div class="page-title-banner">'
+        '<p class="page-title">📈 대시보드 1: 청년 부채 현상 파악</p>'
+        '<p class="page-subtitle">저금리 시대, 청년들은 왜 빚을 냈는가 — 거시 금리 흐름과 청년 부채 급증의 상관관계 추적</p>'
+        '</div>', unsafe_allow_html=True)
     st.markdown("---")
 
     # ── KPI 카드 ────────────────────────────────────────────────
@@ -401,11 +410,11 @@ GROUP BY year
 # ═══════════════════════════════════════════════════════════════
 elif page == 2:
 
-    st.markdown('<p class="page-title">💰 대시보드 2: 부채는 늘었는데, 자산은 쌓였는가?</p>', unsafe_allow_html=True)
     st.markdown(
-        '<p class="page-subtitle">청년 순자산 평균은 올랐지만 중앙값은 내려갔다 — 숫자 뒤에 숨은 양극화를 추적합니다</p>',
-        unsafe_allow_html=True,
-    )
+        '<div class="page-title-banner">'
+        '<p class="page-title">💰 대시보드 2: 부채는 늘었는데, 자산은 쌓였는가?</p>'
+        '<p class="page-subtitle">청년 순자산 평균은 올랐지만 중앙값은 내려갔다 — 숫자 뒤에 숨은 양극화를 추적합니다</p>'
+        '</div>', unsafe_allow_html=True)
     st.markdown("---")
 
     # hfws_youth → household 역할 수행 (조사연도 사용)
@@ -706,48 +715,6 @@ WHERE 순자산 <= (SELECT PERCENTILE_APPROX(순자산, 0.99) FROM hfws_youth)
     with st.expander("🗄️ SQL 쿼리 보기"):
         st.code("SELECT year, 소득분위_숫자, 순자산 FROM hfws_youth\n-- Python에서 .quantile(0.99)로 이상치 제거 후 박스플롯 시각화", language="sql")
 
-    st.markdown("---")
-
-    # ── 차트 3 : 금융·실물자산 비중 (원래 대시보드2 차트2) ───────
-    st.markdown('<p class="section-title">③ 청년 자산 포트폴리오 구성 변화</p>', unsafe_allow_html=True)
-
-    query_asset = """
-SELECT
-    조사연도,
-    SUM(자산_금융자산 * 가중값) AS 금융자산_합,
-    SUM(자산_실물자산 * 가중값) AS 실물자산_합
-FROM hfws_youth
-GROUP BY 조사연도
-"""
-    asset_df = load_table(query_asset)
-    asset_df["총자산_합"] = asset_df["금융자산_합"] + asset_df["실물자산_합"]
-    asset_df["금융자산 비중"] = (asset_df["금융자산_합"] / asset_df["총자산_합"]) * 100
-    asset_df["실물자산 비중"] = (asset_df["실물자산_합"] / asset_df["총자산_합"]) * 100
-
-    melted = pd.melt(asset_df, id_vars=["조사연도"],
-                     value_vars=["금융자산 비중", "실물자산 비중"],
-                     var_name="자산종류", value_name="비중")
-
-    fig3 = px.bar(melted, x="조사연도", y="비중", color="자산종류",
-                  title="연도별 자산 포트폴리오 비중 변화 (100% 누적 막대)",
-                  labels={"비중": "비중 (%)", "조사연도": "조사연도"},
-                  color_discrete_map={"금융자산 비중": "#60A5FA", "실물자산 비중": "#93C5FD"})
-    fig3.update_layout(xaxis=dict(tickvals=[2018, 2021, 2023]),
-                       yaxis=dict(ticksuffix="%"),
-                       plot_bgcolor="white",
-                       margin=dict(t=60, b=40))
-    st.plotly_chart(fig3, use_container_width=True)
-
-    st.markdown(
-        '<div class="insight-box">💡 <b>실물자산 집중 → 금리 충격에 취약</b><br><br>'
-        '청년 가구 자산의 대부분이 부동산 등 실물자산에 집중되어 있습니다. '
-        '부동산 폭등기에 실물자산 비중이 급증했으나, '
-        '금리 인상·전세사기 이후 금융자산 비중이 소폭 확대되는 모습입니다. '
-        '실물 위주의 포트폴리오는 금리 상승 시 청년 신용위험으로 직결됩니다.</div>',
-        unsafe_allow_html=True)
-    with st.expander("🗄️ SQL 쿼리 보기"):
-        st.code(query_asset, language="sql")
-
     # ── 결론 ────────────────────────────────────────────────────
     st.markdown(
         '<div class="conclusion-box">📢 <b>대시보드 2 종합 결론</b> — '
@@ -762,11 +729,11 @@ GROUP BY 조사연도
 # ═══════════════════════════════════════════════════════════════
 elif page == 3:
 
-    st.markdown('<p class="page-title">🔬 대시보드 3: 같은 부채, 소득분위별 다른 결과</p>', unsafe_allow_html=True)
     st.markdown(
-        '<p class="page-subtitle">격차의 통계적 검증 — t-test · 회귀분석 · 주관적 재정인식까지</p>',
-        unsafe_allow_html=True,
-    )
+        '<div class="page-title-banner">'
+        '<p class="page-title">🔬 대시보드 3: 같은 부채, 소득분위별 다른 결과</p>'
+        '<p class="page-subtitle">격차의 통계적 검증 — t-test · 회귀분석 · 주관적 재정인식까지</p>'
+        '</div>', unsafe_allow_html=True)
     st.markdown("---")
 
     @st.cache_data
@@ -785,15 +752,45 @@ elif page == 3:
             conn)
     @st.cache_data
     def load_median_kgss():
-        hf   = pd.read_sql("SELECT year, 순자산 FROM hfws_youth", conn)
-        kgss = pd.read_sql("SELECT * FROM kgss_summary", conn)
-        med  = (hf.groupby("year")["순자산"].median()
-                .reset_index().rename(columns={"순자산": "순자산_중앙값"}))
-        return med.merge(kgss, on="year", how="left")
+        # SQLite는 MEDIAN()을 지원하지 않으므로,
+        # ROW_NUMBER() 윈도우 함수로 중앙값을 SQL 내부에서 계산한 뒤
+        # kgss_summary 테이블과 연도 기준 LEFT JOIN합니다.
+        query_median_join = """
+WITH ranked AS (
+    SELECT
+        year,
+        순자산,
+        ROW_NUMBER() OVER (PARTITION BY year ORDER BY 순자산) AS rn,
+        COUNT(*)     OVER (PARTITION BY year)                  AS cnt
+    FROM hfws_youth
+),
+median_raw AS (
+    SELECT year, 순자산
+    FROM ranked
+    WHERE rn IN (
+        (cnt + 1) / 2,
+        (cnt + 2) / 2
+    )
+),
+median_by_year AS (
+    SELECT year, AVG(순자산) AS 순자산_중앙값
+    FROM median_raw
+    GROUP BY year
+)
+SELECT
+    m.year,
+    m.순자산_중앙값,
+    k.avg_satfin,
+    k.avg_finpros
+FROM median_by_year m
+LEFT JOIN kgss_summary k ON m.year = k.year
+ORDER BY m.year
+"""
+        return pd.read_sql(query_median_join, conn), query_median_join
 
     ttest  = load_ttest()
     ols    = load_ols()
-    merged = load_median_kgss()
+    merged, MEDIAN_JOIN_QUERY = load_median_kgss()
 
     # ── KPI 카드 ────────────────────────────────────────────────
     st.markdown('<p class="section-title">① 핵심 수치 요약 — 영끌 시기의 승자와 패자</p>', unsafe_allow_html=True)
@@ -835,52 +832,122 @@ elif page == 3:
 
     st.markdown("---")
 
-    # ── 차트 2 : t-test 결과 히트맵 스타일 ──────────────────────
+    # ── 차트 2 : t-test — Grouped Bar (Before/After) + 유의성 강조 ──
     st.markdown('<p class="section-title">② t-test 검증 — 순자산 격차는 통계적으로 유의한가?</p>', unsafe_allow_html=True)
 
-    # 표 형태로 직관적으로 표현 + 산점도(dot plot) 스타일
     ttest_disp = ttest[["group","year_from","year_to","mean_from","mean_to","diff","t_stat","p_val","sig"]].copy()
 
-    # --- Dot-plot: 비교 구간별 두 집단 순자산 변화 ---
-    fig_t = go.Figure()
+    # ── 상단: Before/After 그룹 막대 (집단×구간별 기간 전후 순자산 비교) ──
+    periods_t   = [(2018,2021,"영끌 시기"), (2021,2023,"회복 시기"), (2018,2023,"전체 구간")]
+    groups_t    = ["하위(Q1+Q2)", "상위(Q4+Q5)"]
+    bar_colors  = {"하위(Q1+Q2)": (COLOR_RED, "#FECACA"), "상위(Q4+Q5)": (COLOR_BLUE, "#BFDBFE")}
 
-    periods = [(2018,2021,"영끌 시기"), (2021,2023,"회복 시기"), (2018,2023,"전체 구간")]
-    group_map = {"상위(Q4+Q5)": (COLOR_BLUE, "상위(Q4+Q5)"), "하위(Q1+Q2)": (COLOR_RED, "하위(Q1+Q2)")}
+    left_col, right_col = st.columns([3, 2])
 
-    for i, (yf, yt, label) in enumerate(periods):
-        sub = ttest[(ttest["year_from"]==yf) & (ttest["year_to"]==yt)]
-        for _, row in sub.iterrows():
-            col, name = group_map.get(row["group"], (COLOR_GREY, row["group"]))
-            sig_mark = " ★" if row["sig"] != "n.s." else ""
-            fig_t.add_trace(go.Scatter(
-                x=[row["mean_from"], row["mean_to"]],
-                y=[f"{label}\n{name}", f"{label}\n{name}"],
-                mode="lines+markers+text",
-                line=dict(color=col, width=3),
-                marker=dict(size=[12, 12], color=[col, col],
-                            symbol=["circle", "circle"]),
-                text=[f"{int(row['mean_from']):,}만", f"{int(row['mean_to']):,}만{sig_mark}"],
-                textposition=["middle left", "middle right"],
-                textfont=dict(size=11),
-                name=name,
-                showlegend=(i == 0),
-                hovertemplate=(
-                    f"<b>{label} — {name}</b><br>"
-                    f"변화량: {int(row['diff']):+,}만원<br>"
-                    f"t={row['t_stat']:.3f}, p={row['p_val']:.4f}<br>"
-                    f"유의성: {row['sig']}<extra></extra>"
-                ),
+    with left_col:
+        fig_ba = go.Figure()
+        x_labels = []
+        for pf, pt, plabel in periods_t:
+            x_labels.append(plabel)
+
+        for grp in groups_t:
+            dark, light = bar_colors[grp]
+            before_vals, after_vals, hover_texts = [], [], []
+            for pf, pt, plabel in periods_t:
+                row = ttest[(ttest["group"]==grp)&(ttest["year_from"]==pf)&(ttest["year_to"]==pt)].iloc[0]
+                before_vals.append(row["mean_from"])
+                after_vals.append(row["mean_to"])
+                sig_txt = row["sig"] if row["sig"] != "n.s." else "유의하지 않음"
+                hover_texts.append(
+                    f"<b>{grp} — {plabel}</b><br>"
+                    f"기간 전: {int(row['mean_from']):,}만원<br>"
+                    f"기간 후: {int(row['mean_to']):,}만원<br>"
+                    f"변화: {int(row['diff']):+,}만원<br>"
+                    f"p={row['p_val']:.4f} ({sig_txt})"
+                )
+            # Before 막대
+            fig_ba.add_trace(go.Bar(
+                name=f"{grp} — 기간 전",
+                x=x_labels, y=before_vals,
+                marker_color=light,
+                marker_line=dict(color=dark, width=1.5),
+                offsetgroup=grp,
+                text=[f"{int(v):,}" for v in before_vals],
+                textposition="inside",
+                textfont=dict(color=dark, size=11, family="Arial Black"),
+                hovertext=hover_texts, hoverinfo="text",
+                legendgroup=grp,
+            ))
+            # After 막대
+            fig_ba.add_trace(go.Bar(
+                name=f"{grp} — 기간 후",
+                x=x_labels, y=after_vals,
+                marker_color=dark,
+                offsetgroup=grp + "_after",
+                text=[f"{int(v):,}" for v in after_vals],
+                textposition="inside",
+                textfont=dict(color="white", size=11, family="Arial Black"),
+                hovertext=hover_texts, hoverinfo="text",
+                legendgroup=grp,
             ))
 
-    fig_t.update_layout(
-        height=500,
-        title="소득 집단별 순자산 변화 비교 (점 = 기간 전후 평균, 선 = 변화 방향)",
-        plot_bgcolor="white",
-        xaxis=dict(title="순자산 평균 (만원)", gridcolor="#E8EFF6"),
-        yaxis=dict(autorange="reversed"),
-        legend=dict(orientation="h", y=1.06),
-        margin=dict(t=80, b=40, l=200, r=60))
-    st.plotly_chart(fig_t, use_container_width=True)
+        # 유의한 구간에 별표 주석 (영끌 시기 상위 집단)
+        row_sig = ttest[(ttest["group"]=="상위(Q4+Q5)")&(ttest["year_from"]==2018)&(ttest["year_to"]==2021)].iloc[0]
+        fig_ba.add_annotation(
+            x="영끌 시기", y=row_sig["mean_to"] + 1500,
+            text="<b>★★★ p&lt;0.001</b><br>+7,994만원",
+            showarrow=True, arrowhead=2, arrowcolor=COLOR_BLUE,
+            font=dict(color=COLOR_BLUE, size=12),
+            bgcolor="white", bordercolor=COLOR_BLUE, borderwidth=1.5, borderpad=4,
+            ax=0, ay=-40,
+        )
+        fig_ba.update_layout(
+            height=460,
+            title="소득 집단별 기간 전·후 순자산 평균 비교",
+            barmode="group",
+            plot_bgcolor="white",
+            xaxis=dict(title="비교 구간", showgrid=False),
+            yaxis=dict(title="순자산 평균 (만원)", gridcolor="#E8EFF6"),
+            legend=dict(orientation="h", y=1.08, font=dict(size=10)),
+            margin=dict(t=80, b=40, l=60, r=20),
+        )
+        st.plotly_chart(fig_ba, use_container_width=True)
+
+    with right_col:
+        # ── 변화량 다이버전트 바차트 (우측) ──
+        fig_div = go.Figure()
+        div_x, div_y, div_colors, div_texts = [], [], [], []
+        for pf, pt, plabel in periods_t:
+            for grp in groups_t:
+                row = ttest[(ttest["group"]==grp)&(ttest["year_from"]==pf)&(ttest["year_to"]==pt)].iloc[0]
+                label = f"{plabel} / {grp.split('(')[0]}"
+                div_x.append(int(row["diff"]))
+                div_y.append(label)
+                c = bar_colors[grp][0] if row["diff"] >= 0 else COLOR_RED
+                div_colors.append(c)
+                sig_mark = f" {row['sig']}" if row["sig"] != "n.s." else " n.s."
+                div_texts.append(f"{int(row['diff']):+,}만{sig_mark}")
+
+        fig_div.add_trace(go.Bar(
+            x=div_x, y=div_y,
+            orientation="h",
+            marker_color=div_colors,
+            text=div_texts,
+            textposition="outside",
+            textfont=dict(size=10),
+            hovertemplate="변화량: %{x:+,}만원<extra></extra>",
+        ))
+        fig_div.add_vline(x=0, line_color="#374151", line_width=1.5)
+        fig_div.update_layout(
+            height=460,
+            title="집단별 순자산 변화량",
+            plot_bgcolor="white",
+            xaxis=dict(title="변화량 (만원)", gridcolor="#E8EFF6", zeroline=False),
+            yaxis=dict(autorange="reversed", tickfont=dict(size=10)),
+            showlegend=False,
+            margin=dict(t=60, b=40, l=10, r=80),
+        )
+        st.plotly_chart(fig_div, use_container_width=True)
 
     ttest_show = ttest_disp.copy()
     ttest_show.columns = ["집단","비교시작","비교종료","기간전평균","기간후평균","변화량(만원)","t통계량","p값","유의성"]
@@ -910,55 +977,66 @@ elif page == 3:
     )
     ols_data["유의"] = ols_data["sig"].apply(lambda x: x != "n.s.")
 
-    # 오차막대 포함 점-선 차트 (두 집단 비교)
-    fig_ols = go.Figure()
-
-    for group, color in [("하위(Q1+Q2)", COLOR_RED), ("상위(Q4+Q5)", COLOR_BLUE)]:
-        sub = ols_data[ols_data["group"] == group]
-        # 유의한 것만 불투명, 비유의는 회색 점선
-        for _, row in sub.iterrows():
-            is_sig = row["유의"]
-            fig_ols.add_trace(go.Scatter(
-                x=[row["var_label"]],
-                y=[row["coef"]],
-                error_y=dict(
-                    type="data",
-                    array=[row["se"] * 1.96],
-                    color=color if is_sig else COLOR_GREY,
-                    thickness=2, width=8),
-                mode="markers+text",
-                marker=dict(
-                    size=16,
-                    color=color if is_sig else COLOR_GREY,
-                    symbol="circle",
-                    line=dict(width=2, color="white")),
-                text=[f"{row['coef']:,.0f}<br>{row['sig']}"],
-                textposition="top center",
-                textfont=dict(size=10, color=color if is_sig else COLOR_GREY),
-                name=group,
-                showlegend=(row["var_label"] == "연령(세)"),
-                hovertemplate=(
-                    f"<b>{group} — {row['var_label']}</b><br>"
-                    f"회귀계수: {row['coef']:,.1f}만원<br>"
-                    f"표준오차: {row['se']:,.1f}<br>"
-                    f"유의성: {row['sig']}<extra></extra>"
-                ),
-                legendgroup=group,
-            ))
-
-    fig_ols.add_hline(y=0, line_color=COLOR_GREY, line_width=1, line_dash="dash")
-
     r2_low  = ols_data[ols_data["group"]=="하위(Q1+Q2)"]["r2"].iloc[0]
     r2_high = ols_data[ols_data["group"]=="상위(Q4+Q5)"]["r2"].iloc[0]
 
+    # ── 변수별 서브플롯: 각 변수마다 두 집단 계수를 나란히 ──
+    var_labels = ["금융부채(만원)", "연령(세)", "수도권 거주"]
+    fig_ols = make_subplots(
+        rows=1, cols=3,
+        subplot_titles=[f"<b>{v}</b>" for v in var_labels],
+        shared_yaxes=False,
+    )
+
+    for ci, vl in enumerate(var_labels, start=1):
+        sub = ols_data[ols_data["var_label"] == vl]
+        for grp, color in [("하위(Q1+Q2)", COLOR_RED), ("상위(Q4+Q5)", COLOR_BLUE)]:
+            row = sub[sub["group"] == grp].iloc[0]
+            is_sig = row["유의"]
+            bar_color  = color if is_sig else "#D1D5DB"
+            bar_opacity = 1.0 if is_sig else 0.5
+            ci95 = row["se"] * 1.96
+
+            # 막대
+            fig_ols.add_trace(go.Bar(
+                x=[grp.split("(")[0]],
+                y=[row["coef"]],
+                name=grp,
+                marker_color=bar_color,
+                opacity=bar_opacity,
+                error_y=dict(type="data", array=[ci95],
+                             color="#374151", thickness=2, width=6),
+                text=[f"<b>{row['coef']:,.0f}</b><br>{row['sig']}"],
+                textposition="outside",
+                textfont=dict(size=11),
+                showlegend=(ci == 1),
+                legendgroup=grp,
+                hovertemplate=(
+                    f"<b>{grp} — {vl}</b><br>"
+                    f"회귀계수: {row['coef']:,.1f}만원<br>"
+                    f"95% CI: ±{ci95:,.1f}<br>"
+                    f"유의성: {row['sig']}<extra></extra>"
+                ),
+                width=0.45,
+            ), row=1, col=ci)
+
+        # 0 기준선
+        fig_ols.add_hline(y=0, line_color="#9CA3AF", line_width=1,
+                          line_dash="dash", row=1, col=ci)
+
     fig_ols.update_layout(
-        height=480,
-        title=f"집단별 순자산 회귀계수 (95% 신뢰구간 포함) | 하위 R²={r2_low:.4f} / 상위 R²={r2_high:.4f}",
+        height=520,
+        title_text=f"변수별 순자산 회귀계수 비교 (95% CI 오차막대) | 하위 R²={r2_low:.4f} / 상위 R²={r2_high:.4f}",
         plot_bgcolor="white",
-        xaxis=dict(title="설명변수", showgrid=False),
-        yaxis=dict(title="회귀계수 (만원)", gridcolor="#E8EFF6"),
-        legend=dict(orientation="h", y=1.08),
-        margin=dict(t=80, b=40, l=60, r=40))
+        barmode="group",
+        legend=dict(orientation="h", y=1.12, x=0.35),
+        margin=dict(t=90, b=60, l=60, r=40),
+    )
+    for ci in range(1, 4):
+        fig_ols.update_yaxes(title_text="회귀계수 (만원)", gridcolor="#E8EFF6",
+                             zeroline=True, zerolinecolor="#9CA3AF", row=1, col=ci)
+        fig_ols.update_xaxes(showgrid=False, row=1, col=ci)
+
     st.plotly_chart(fig_ols, use_container_width=True)
 
     # 요약 표
@@ -989,13 +1067,7 @@ elif page == 3:
     # ── 차트 6 : 순자산 중앙값 × 가계만족도 ─────────────────────
     st.markdown('<p class="section-title">④ 순자산 중앙값 vs 가계만족도 (KGSS SATFIN)</p>', unsafe_allow_html=True)
 
-    satfin_query = """
-SELECT h.year, MEDIAN(h.순자산) AS 순자산_중앙값, k.avg_satfin
-FROM hfws_youth h
-LEFT JOIN kgss_summary k ON h.year = k.year
-GROUP BY h.year
--- (Python에서 median() 계산 후 LEFT JOIN)
-"""
+
 
     fig6 = make_subplots(specs=[[{"secondary_y": True}]])
     fig6.add_trace(
@@ -1036,7 +1108,7 @@ GROUP BY h.year
         '자산 통계상 평균은 올랐지만, <b>실제 청년이 느끼는 체감은 계속 나빠지고 있습니다.</b></div>',
         unsafe_allow_html=True)
     with st.expander("🗄️ SQL 쿼리 보기"):
-        st.code("SELECT year, AVG(avg_satfin) FROM kgss_summary GROUP BY year\n-- Python에서 hfws_youth median과 LEFT JOIN 후 시각화", language="sql")
+        st.code(MEDIAN_JOIN_QUERY, language="sql")
 
     st.markdown("---")
 
@@ -1080,7 +1152,7 @@ GROUP BY h.year
         '⑥번 차트와 함께, 청년의 재정 상황에 대한 <b>객관적 악화와 주관적 비관이 동시에 진행</b>되고 있습니다.</div>',
         unsafe_allow_html=True)
     with st.expander("🗄️ SQL 쿼리 보기"):
-        st.code("SELECT year, avg_finpros FROM kgss_summary\n-- Python에서 hfws_youth median과 LEFT JOIN 후 시각화", language="sql")
+        st.code(MEDIAN_JOIN_QUERY, language="sql")
 
     # ── 최종 결론 ──────────────────────────────────────────────
     st.markdown("---")
