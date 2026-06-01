@@ -171,6 +171,14 @@ def weighted_median(df, val_col, weight_col):
 def load_table(query):
     return pd.read_sql(query, conn)
 
+def load_kgss_income_group():
+    """캐시 없이 직접 읽기 — kgss_income_group은 새로 추가된 테이블이므로 캐시 우회"""
+    return pd.read_sql(
+        "SELECT year, income_group, avg_satfin, avg_finpros "
+        "FROM kgss_income_group ORDER BY year, income_group",
+        conn
+    )
+
 # ─────────────────────────────────────────────────────────────
 # 4. 사이드바 네비게이션
 # ─────────────────────────────────────────────────────────────
@@ -1122,7 +1130,7 @@ FROM kgss_income_group
 ORDER BY year, income_group
 """
     df_hfws_med = load_table(query_hfws_median)
-    df_kgss_grp = load_table(query_kgss_grp)
+    df_kgss_grp = load_kgss_income_group()
 
     df_q1_sat = df_hfws_med[df_hfws_med["소득분위_숫자"] == 1].copy()
     df_q5_sat = df_hfws_med[df_hfws_med["소득분위_숫자"] == 5].copy()
