@@ -36,20 +36,22 @@ st.markdown("""
 }
 /* 제목 */
 .page-title {
-    font-size: 2.6rem; font-weight: 900;
-    color: #1A2B45; margin-bottom: 0.2rem;
-    letter-spacing: -0.5px; line-height: 1.2;
+    font-size: 2.8rem !important; font-weight: 900 !important;
+    color: #1A2B45 !important; margin-bottom: 0.25rem !important;
+    letter-spacing: -0.8px !important; line-height: 1.15 !important;
+    display: block !important;
 }
 .page-title-banner {
     background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
     border-left: 6px solid #3B82F6;
     border-radius: 12px;
-    padding: 1.2rem 1.6rem 1rem 1.6rem;
-    margin-bottom: 1rem;
+    padding: 1.4rem 1.8rem 1.1rem 1.8rem;
+    margin-bottom: 1.2rem;
 }
 .page-subtitle {
-    font-size: 1.05rem; color: #3B5B8A; margin-top: 0.3rem;
-    font-weight: 500;
+    font-size: 1.1rem !important; color: #3B5B8A !important;
+    margin-top: 0.4rem !important; font-weight: 500 !important;
+    display: block !important;
 }
 /* 섹션 구분선 제목 */
 .section-title {
@@ -173,7 +175,7 @@ def load_table(query):
 # 4. 사이드바 네비게이션
 # ─────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## 📊 청년 부채 분석")
+    st.markdown("## 📊 청년 부채 양극화 분석")
     st.markdown("**경영정보처리론 8조**")
     st.markdown("---")
     st.markdown("### 📌 대시보드 이동")
@@ -181,19 +183,40 @@ with st.sidebar:
     if "page" not in st.session_state:
         st.session_state.page = 1
 
-    def nav(n):
-        st.session_state.page = n
-
     pages = {
-        1: "📈 대시보드 1\n청년 부채 현상 파악",
-        2: "💰 대시보드 2\n부채 속 자산은 쌓였는가?",
-        3: "🔬 대시보드 3\n같은 부채, 다른 결과",
+        1: ("📈", "대시보드 1", "청년 부채 현상 파악"),
+        2: ("💰", "대시보드 2", "부채 속 자산은 쌓였는가?"),
+        3: ("🔬", "대시보드 3", "같은 부채, 다른 결과"),
     }
-    for n, label in pages.items():
+    for n, (icon, title, subtitle) in pages.items():
         active = st.session_state.page == n
-        btn_style = "primary" if active else "secondary"
-        if st.button(label, key=f"nav_{n}", type=btn_style):
-            nav(n)
+        # 활성 버튼: 빨간 배경 흰 글씨 / 비활성: 흰 배경 회색 글씨
+        if active:
+            bg, fg, border = "#EF4444", "#ffffff", "#EF4444"
+        else:
+            bg, fg, border = "#ffffff", "#374151", "#D1D5DB"
+        btn_html = f"""
+        <div style="
+            background:{bg}; color:{fg};
+            border: 1.5px solid {border};
+            border-radius: 8px;
+            padding: 0.55rem 0.9rem;
+            margin-bottom: 0.4rem;
+            cursor: pointer;
+            font-weight: {'700' if active else '500'};
+            font-size: 0.88rem;
+            line-height: 1.4;
+        ">
+            {icon} <b>{title}</b><br>
+            <span style="font-size:0.78rem; opacity:0.85;">{subtitle}</span>
+        </div>"""
+        # 실제 클릭은 st.button으로 처리 (HTML은 시각용)
+        st.markdown(btn_html, unsafe_allow_html=True)
+        if st.button(f"{icon} {title}", key=f"nav_{n}",
+                     use_container_width=True,
+                     help=subtitle):
+            st.session_state.page = n
+            st.rerun()
 
     st.markdown("---")
     st.markdown(
